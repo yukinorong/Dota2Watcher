@@ -2,7 +2,7 @@ import json, dota2api, socket, re, threading, hashlib, time, random, string, req
 from random import randint
 from urllib.parse import quote
 # 引入内容数据
-from Content import HEROES_LIST_CHINESE, WIN_NEGATIVE, WIN_POSTIVE, LOSE_NEGATIVE, LOSE_POSTIVE, robot_at_response, robot_response, Tips_Response
+from Content import HEROES_LIST_CHINESE, WIN_NEGATIVE, WIN_POSTIVE, LOSE_NEGATIVE, LOSE_POSTIVE, robot_at_response, Tips_Response
 from UserContent import GROUPID, MYQQID, USER_DICT, steamapi
 
 # http代理端口
@@ -145,12 +145,12 @@ def dota2_listen():
     # 静默启动
     with open('match_log.json','r') as f:
         match_log = json.loads(f.read())
-    for uid, mid in match_log.items():
-        nowmid = get_last_match_id_by_userid(uid)
-        if nowmid and nowmid != match_log[uid]:
-            # 更新 match_log
-            match_log[uid] = nowmid
-    print('静默启动完成')
+    # for uid, mid in match_log.items():
+    #     nowmid = get_last_match_id_by_userid(uid)
+    #     if nowmid and nowmid != match_log[uid]:
+    #         # 更新 match_log
+    #         match_log[uid] = nowmid
+    # print('静默启动完成')
     # 静默启动完成
 
     # 实时监测 每2分钟
@@ -168,6 +168,71 @@ def dota2_listen():
             f.write(json.dumps(match_log))
         print('等待2分钟...',time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
         time.sleep(120)
+
+
+
+# 语录 及 语录权限 控制函数
+def load_talk_dict():
+    with open('talk_dict.json', 'r', encoding='utf-8') as f:
+        talk_dict = json.loads(f.read())
+    return talk_dict
+
+def save_talk_dict(dict):
+    with open('talk_dict.json', 'w', encoding='utf-8') as f:
+        f.write(json.dumps(dict))
+
+def add_talk_dict(key, value):
+    dict = load_talk_dict()
+    dict[key] = value
+    save_talk_dict(dict)
+    print('add', key)
+
+def del_talk_dict(key):
+    dict = load_talk_dict()
+    dict.pop(key)
+    save_talk_dict(dict)
+    print('del',key)
+
+def mod_talk_dict(key, value):
+    dict = load_talk_dict()
+    dict[key] = value
+    save_talk_dict(dict)
+    print('mod', key)
+
+
+# // 管理员权限 对于语录列表增删改， 对于语录权限列表增删
+# // 用户权限 对于 语录列表 增， 不可操作语录权限列表。
+def load_user_right():
+    with open('user_right.json', 'r', encoding='utf-8') as f:
+        user_right = json.loads(f.read())
+    return user_right
+
+def save_user_right(dict):
+    with open('user_right.json', 'w', encoding='utf-8') as f:
+        f.write(json.dumps(dict))
+
+def check_user_right(uid):
+    dict = load_user_right()
+    if uid in dict['admin']:
+        return 2
+    elif uid in dict['user']:
+        return 1
+    else :
+        return 0
+
+def add_user_right(uid):
+    dict = load_user_right()
+    dict['user'].append(int(uid))
+    save_user_right(dict)
+    print('add', uid)
+
+def del_user_right(uid):
+    dict = load_user_right()
+    dict['user'].remove(int(uid))
+    save_user_right(dict)
+    print('del', uid)
+
+
 
 # 青云客聊天机器人api
 def talk_robot1(msg):
@@ -222,7 +287,6 @@ def talk_robot2(plus_item):
 
 # robot_func_list = [talk_robot2, talk_robot2]
 
-
 # qq机器人监听函数
 def qq_listen():
     # 1.2 监听qq消息，实现自动回复
@@ -231,67 +295,111 @@ def qq_listen():
     listen_socket.bind((host, hport))
     listen_socket.listen(1)
     print('Serving HTTP on port %s ...' % hport)
+    send_group_rawmsg(522201349, '爷上线了')
     while(1):
         client_connection, client_address = listen_socket.accept()
         request = client_connection.recv(2048)
+
         # 提取聊天文字
-        # print((request.decode("utf-8")))
-        try:
-            rm = re.search(r'"raw_message":"(.*?)",', request.decode("utf-8")).group(1)
-            uid = re.search(r'user_id":(.*?)[}|,]', request.decode("utf-8")).group(1)
-            gid = ''
-        except:
+        jdata = json.loads(request.decode("utf-8").split('\r\n')[-1])
+        msg = jdata['raw_message']
+        uid = jdata['user_id']
+        # 仅限 csgo 群
+        if 'group_id' in jdata.keys() and jdata['group_id'] == 522201349:
+            gid = jdata['group_id']
+        else:
+            gid = 0
+        print(msg, uid, gid)
+
+        # 处理命令
+        ms = msg.split()
+        if 'add' == ms[0] and len(ms) == 3 and check_user_right(uid):
+            add_talk_dict(ms[1], ms[2])
+            if gid:
+                send_group_rawmsg(gid, '爷记住了')
             continue
-        print(rm, uid)
-
-        # 处理at请求
-        if '[CQ:at,qq=2257856228]' in rm:
-            rm = rm.replace('[CQ:at,qq=2257856228]', '')
-            # 冷知识推送
-            if 'tips' in rm:
-                res = Tips_Response[randint(0,len(Tips_Response)-1)]
-                # send_group_msg(GROUPID, res)
-                send_private_rawmsg(MYQQID, res)
-                continue
-
-
-            # 接入聊天机器人
-            robot_res = talk_robot1(rm)
-            if robot_res:
-                print(robot_res)
-                res = robot_res
-            else :
-                # 聊天机器人坏了， 用备用语录 robot_at_response
-                res = robot_at_response[randint(0,len(robot_at_response)-1)]
-
-            # send_group_msg(GROUPID, res)
-            send_private_rawmsg(MYQQID, res)
+        elif 'del' == ms[0] and len(ms) == 2 and check_user_right(uid):
+            del_talk_dict(ms[1])
+            if gid:
+                send_group_rawmsg(gid, '爷记住了')
             continue
+        elif 'mod' == ms[0] and len(ms) == 3 and check_user_right(uid):
+            mod_talk_dict(ms[1], ms[2])
+            if gid:
+                send_group_rawmsg(gid, '爷记住了')
+            continue
+        else:
+            print('no')
 
-        # 处理特殊语句
-        for k in robot_response.keys():
-            if k in rm:
-                res = robot_response[k][randint(0,len(robot_response[k])-1)]
-                # send_group_msg(GROUPID, res)
-                send_private_rawmsg(MYQQID, res)
-                continue
+        # 处理权限命令
+        if 'addu' == ms[0] and len(ms) == 2 and check_user_right(uid)==2:
+            add_user_right(ms[1])
+            if gid:
+                send_group_rawmsg(gid, '爷记住了')
+            continue
+        elif 'delu' == ms[0] and len(ms) == 2 and check_user_right(uid)==2:
+            del_user_right(ms[1])
+            if gid:
+                send_group_rawmsg(gid, '爷记住了')
+            continue
+        else:
+            print('no')
+
+        # 处理关键字命令
+        talk_dict = load_talk_dict()
+        if ms[0] in talk_dict.keys():
+            # send_private_rawmsg(863347350, talk_dict[ms[0]])
+            if gid:
+                send_group_rawmsg(gid, talk_dict[ms[0]])
+            print(ms[0])
 
 
+        # if '[CQ:at,qq=2257856228]' in msg:
+        #     msg1 = msg.replace('[CQ:at,qq=2257856228]', '')
+        #     msg1
+        # 处理 @ 请求
+        # pass
 
 
-#         http_response = """\
-# HTTP/1.1 200 OK
+#         # 处理at请求
+#         if '[CQ:at,qq=2257856228]' in rm:
+#             rm = rm.replace('[CQ:at,qq=2257856228]', '')
+#             # 冷知识推送
+#             if 'tips' in rm:
+#                 res = Tips_Response[randint(0,len(Tips_Response)-1)]
+#                 send_group_msg(GROUPID, res)
+#                 # send_private_rawmsg(MYQQID, res)
+#                 continue
 #
-# ok"""
-#         client_connection.sendall(http_response.encode("utf-8"))
-        client_connection.close()
+#
+#             # 接入聊天机器人
+#             robot_res = talk_robot1(rm)
+#             if robot_res:
+#                 print(robot_res)
+#                 res = robot_res
+#             else :
+#                 # 聊天机器人坏了， 用备用语录 robot_at_response
+#                 res = robot_at_response[randint(0,len(robot_at_response)-1)]
+#
+#             send_group_msg(GROUPID, res)
+#             # send_private_rawmsg(MYQQID, res)
+#             continue
+#
+
+#
+# #         http_response = """\
+# # HTTP/1.1 200 OK
+# #
+# # ok"""
+# #         client_connection.sendall(http_response.encode("utf-8"))
+#         client_connection.close()
 
 
 
 def main():
-    threading.Thread(target=qq_listen).start()
-    threading.Thread(target=dota2_listen).start()
-
+    # threading.Thread(target=qq_listen).start()
+    # threading.Thread(target=dota2_listen).start()
+    qq_listen()
     # get_match_detail(5956077603, 162255543)
     # match_push(5956077603, 162255543)
 

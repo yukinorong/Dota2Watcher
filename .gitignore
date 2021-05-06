@@ -1,5 +1,8 @@
 UserContent.py
 .idea
 __pycache__
+talk_dict.json
+user_right.json
 match_log.json
 test.py
+Dota2DataSpider.py
