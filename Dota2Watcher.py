@@ -181,9 +181,13 @@ def save_talk_dict(dict):
     with open('talk_dict.json', 'w', encoding='utf-8') as f:
         f.write(json.dumps(dict))
 
+#
 def add_talk_dict(key, value):
     dict = load_talk_dict()
-    dict[key] = value
+    if key not in dict.keys():
+        dict[key] = [value]
+    else:
+        dict[key].append(value)
     save_talk_dict(dict)
     print('add', key)
 
@@ -193,11 +197,16 @@ def del_talk_dict(key):
     save_talk_dict(dict)
     print('del',key)
 
-def mod_talk_dict(key, value):
-    dict = load_talk_dict()
-    dict[key] = value
-    save_talk_dict(dict)
-    print('mod', key)
+def update_talk_dict1(dict):
+    for k, v in dict.items():
+        dict[k] = [v]
+    return dict
+
+# def mod_talk_dict(key, value):
+#     dict = load_talk_dict()
+#     dict[key] = value
+#     save_talk_dict(dict)
+#     print('mod', key)
 
 
 # // 管理员权限 对于语录列表增删改， 对于语录权限列表增删
@@ -295,7 +304,7 @@ def qq_listen():
     listen_socket.bind((host, hport))
     listen_socket.listen(1)
     print('Serving HTTP on port %s ...' % hport)
-    send_group_rawmsg(522201349, '爷上线了')
+    # send_group_rawmsg(522201349, '爷上线了')
     while(1):
         client_connection, client_address = listen_socket.accept()
         request = client_connection.recv(2048)
@@ -317,17 +326,19 @@ def qq_listen():
             add_talk_dict(ms[1], ms[2])
             if gid:
                 send_group_rawmsg(gid, '爷记住了')
+            else:
+                send_private_rawmsg(863347350, '爷记住了')
             continue
         elif 'del' == ms[0] and len(ms) == 2 and check_user_right(uid):
             del_talk_dict(ms[1])
             if gid:
                 send_group_rawmsg(gid, '爷记住了')
             continue
-        elif 'mod' == ms[0] and len(ms) == 3 and check_user_right(uid):
-            mod_talk_dict(ms[1], ms[2])
-            if gid:
-                send_group_rawmsg(gid, '爷记住了')
-            continue
+        # elif 'mod' == ms[0] and len(ms) == 3 and check_user_right(uid):
+        #     mod_talk_dict(ms[1], ms[2])
+        #     if gid:
+        #         send_group_rawmsg(gid, '爷记住了')
+        #     continue
         else:
             print('no')
 
@@ -348,10 +359,10 @@ def qq_listen():
         # 处理关键字命令
         talk_dict = load_talk_dict()
         if ms[0] in talk_dict.keys():
-            # send_private_rawmsg(863347350, talk_dict[ms[0]])
+            tlist = talk_dict[ms[0]]
             if gid:
-                send_group_rawmsg(gid, talk_dict[ms[0]])
-            print(ms[0])
+                send_group_rawmsg(gid, random.choice(tlist))
+            print(ms[0], random.choice(tlist))
 
 
         # if '[CQ:at,qq=2257856228]' in msg:
@@ -397,11 +408,14 @@ def qq_listen():
 
 
 def main():
+
     # threading.Thread(target=qq_listen).start()
     # threading.Thread(target=dota2_listen).start()
     qq_listen()
     # get_match_detail(5956077603, 162255543)
     # match_push(5956077603, 162255543)
+    # save_talk_dict(update_talk_dict1(load_talk_dict()))
+
 
 
 
