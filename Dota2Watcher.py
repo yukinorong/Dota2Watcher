@@ -184,29 +184,35 @@ def save_talk_dict(dict):
 #
 def add_talk_dict(key, value):
     dict = load_talk_dict()
+    value = value.split(',')
     if key not in dict.keys():
-        dict[key] = [value]
+        dict[key] = []
+        dict[key].extend(value)
     else:
-        dict[key].append(value)
+        dict[key].extend(value)
     save_talk_dict(dict)
     print('add', key)
 
-def del_talk_dict(key):
+def del_talk_dict(key, value=""):
     dict = load_talk_dict()
-    dict.pop(key)
+    if value:
+        dict[key].remove(value)
+    else:
+        dict.pop(key)
     save_talk_dict(dict)
-    print('del',key)
+    print('del',key, ' ', value)
 
-def update_talk_dict1(dict):
-    for k, v in dict.items():
-        dict[k] = [v]
-    return dict
+def show_talk_dict_by_key(key):
+    dict = load_talk_dict()
+    value = '\n'.join(dict[key])
+    return value
 
-# def mod_talk_dict(key, value):
-#     dict = load_talk_dict()
-#     dict[key] = value
-#     save_talk_dict(dict)
-#     print('mod', key)
+# def update_talk_dict1(dict):
+#     for k, v in dict.items():
+#         dict[k] = [v]
+#     return dict
+
+
 
 
 # // 管理员权限 对于语录列表增删改， 对于语录权限列表增删
@@ -329,16 +335,23 @@ def qq_listen():
             else:
                 send_private_rawmsg(863347350, '爷记住了')
             continue
-        elif 'del' == ms[0] and len(ms) == 2 and check_user_right(uid):
-            del_talk_dict(ms[1])
+        elif 'del' == ms[0] and check_user_right(uid):
+            if len(ms) == 2:
+                del_talk_dict(ms[1])
+            elif len(ms) == 3:
+                del_talk_dict(ms[1], ms[2])
+            else:
+                continue
             if gid:
                 send_group_rawmsg(gid, '爷记住了')
             continue
-        # elif 'mod' == ms[0] and len(ms) == 3 and check_user_right(uid):
-        #     mod_talk_dict(ms[1], ms[2])
-        #     if gid:
-        #         send_group_rawmsg(gid, '爷记住了')
-        #     continue
+        elif 'show' == ms[0] and len(ms) == 2 and check_user_right(uid):
+            value = show_talk_dict_by_key(ms[1])
+            if gid:
+                send_group_rawmsg(gid, value)
+            else:
+                send_private_rawmsg(863347350, value)
+            continue
         else:
             print('no')
 
@@ -415,6 +428,8 @@ def main():
     # save_talk_dict(update_talk_dict1(load_talk_dict()))
     qq_listen()
 
+    # add_talk_dict('1', '1,2,3,4,5')
+    # send_private_rawmsg(863347350, show_talk_dict_by_key('1'))
     # get_match_detail(5956077603, 162255543)
     # match_push(5956077603, 162255543)
 
