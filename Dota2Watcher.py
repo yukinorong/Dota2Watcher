@@ -411,10 +411,13 @@ def main():
 
     # threading.Thread(target=qq_listen).start()
     # threading.Thread(target=dota2_listen).start()
+
+    # save_talk_dict(update_talk_dict1(load_talk_dict()))
     qq_listen()
+
     # get_match_detail(5956077603, 162255543)
     # match_push(5956077603, 162255543)
-    # save_talk_dict(update_talk_dict1(load_talk_dict()))
+
 
 
 
