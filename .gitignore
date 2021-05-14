@@ -4,6 +4,7 @@ __pycache__
 talk_dict.json
 user_right.json
 match_log.json
+max_link.json
 test.py
 UserContent.py
 Dota2DataSpider.py
