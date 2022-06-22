@@ -8,3 +8,10 @@ max_link.json
 test.py
 UserContent.py
 Dota2DataSpider.py
+/go-cqhttp/config.yml
+/go-cqhttp/device.json
+/go-cqhttp/logs
+/go-cqhttp/data
+/go-cqhttp/session.token
+/go-cqhttp/go-cqhttp.bat
+config.py
